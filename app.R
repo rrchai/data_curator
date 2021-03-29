@@ -543,12 +543,12 @@ schema_to_display_lookup <- data.frame(schema_name, display_name)
       
       ### format output text
       output$text2 <- renderUI({
-        shiny::validate(need(input$template_type != "", "choose template"),
+        shiny::validate(need(input$template_type != "", "choose template") %then%
                  need(!is.null(rawData()), "choose dataset")
         )
       
       tagList( 
-        HTML("Your metadata is invalid according to the data model.<br/><br/>") %then%
+        HTML("Your metadata is invalid according to the data model.<br/><br/>"),
         HTML(type_error, "<br/><br/>"),
         HTML(help_msg)
       )
