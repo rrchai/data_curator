@@ -548,7 +548,7 @@ schema_to_display_lookup <- data.frame(schema_name, display_name)
         )
       
       tagList( 
-        HTML("Your metadata is invalid according to the data model.<br/><br/>"),
+        HTML("Your metadata is invalid according to the data model.<br/><br/>") %then%
         HTML(type_error, "<br/><br/>"),
         HTML(help_msg)
       )
