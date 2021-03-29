@@ -543,8 +543,8 @@ schema_to_display_lookup <- data.frame(schema_name, display_name)
       
       ### format output text
       output$text2 <- renderUI({
-        shiny::validate(need(input$template_type != "", "choose template"),
-                 need(!is.null(rawData()), "choose dataset")
+        shiny::validate(need(input$template_type != "", "Please <B>choose</B> a template in Select your Dataset tab !!!"),
+                        need(!is.null(rawData()), "Please <B>upload</B> a filled metadata !!!")
         )
       
       tagList( 
