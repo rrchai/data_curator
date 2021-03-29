@@ -543,18 +543,16 @@ schema_to_display_lookup <- data.frame(schema_name, display_name)
       
       ### format output text
       output$text2 <- renderUI({
-        shiny::validate(need(input$template_type != "", "choose template"))
+        validate(need(input$template_type != "", "choose template"),
+                 need(!is.null(rawData()), "choose dataset")
+        )
+      
+      tagList( 
+        HTML("Your metadata is invalid according to the data model.<br/><br/>"),
+        HTML(type_error, "<br/><br/>"),
+        HTML(help_msg)
+      )
         
-        if (is.null(rawData())) {
-            HTML("Please select a data set")
-    
-        } else {
-          tagList( 
-            HTML("Your metadata is invalid according to the data model.<br/><br/>"),
-            HTML(type_error, "<br/><br/>"),
-            HTML(help_msg)
-          )
-        }
       })
   }
   )
