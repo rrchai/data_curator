@@ -539,9 +539,9 @@ schema_to_display_lookup <- data.frame(schema_name, display_name)
       ### format output text
       output$text2 <- renderUI({
         if (is.null(rawData())) {
-          div(
-            HTML("Please <strong>select</strong> a data set"),
-            tags$p(icon("exclamation"), "Please",tags$strong("select"), "a data set")
+          tagList(
+            HTML("Please select a data set")
+    
           ) 
         } else {
           tagList( 
