@@ -452,7 +452,7 @@ schema_to_display_lookup <- data.frame(schema_name, display_name)
       
     show('text_div2')
     
-    if (input$file1 != "") {
+    if (!is.null(rawData())) {
     validate_w$show()
 
     ###lookup schema template name 
@@ -538,7 +538,7 @@ schema_to_display_lookup <- data.frame(schema_name, display_name)
       
       ### format output text
       output$text2 <- renderUI({
-        if (input$file1 == "") {
+        if (is.null(rawData())) {
           div(
             HTML("Please <strong>select</strong> a data set"),
             tags$p(icon("exclamation"), "Please",tags$strong("select"), "a data set")
