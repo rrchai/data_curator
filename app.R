@@ -449,7 +449,10 @@ schema_to_display_lookup <- data.frame(schema_name, display_name)
   ### toggles validation status when validate button pressed
   observeEvent(
     input$validate, {
-
+      
+    show('text_div2')
+    
+    if (input$file1 != "") {
     validate_w$show()
 
     ###lookup schema template name 
@@ -457,9 +460,8 @@ schema_to_display_lookup <- data.frame(schema_name, display_name)
     template_type <- as.character(template_type_df$schema_name)
 
     annotation_status <- metadata_model$validateModelManifest(input$file1$datapath, template_type)
-    
-    show('text_div2')
 
+  
 
     if (length(annotation_status) != 0) {
 
@@ -507,14 +509,6 @@ schema_to_display_lookup <- data.frame(schema_name, display_name)
         html = h3(sprintf("%d errors found", length(annotation_status)))
       )
 
-      ### format output text
-      output$text2 <- renderUI({
-        tagList( 
-          HTML("Your metadata is invalid according to the data model.<br/><br/>"),
-          HTML(type_error, "<br/><br/>"),
-          HTML(help_msg)
-        )
-      })
       
       ### update DT view with incorrect values
       ### currently only one column, requires backend support of multiple
@@ -540,8 +534,27 @@ schema_to_display_lookup <- data.frame(schema_name, display_name)
     }
     Sys.sleep(2)
     validate_w$hide()
+    }
+      
+      ### format output text
+      output$text2 <- renderUI({
+        if (input$file1 == "") {
+          div(
+            HTML("Please <strong>select</strong> a data set"),
+            tags$p(icon("exclamation"), "Please",tags$strong("select"), "a data set")
+          ) 
+        } else {
+          tagList( 
+            HTML("Your metadata is invalid according to the data model.<br/><br/>"),
+            HTML(type_error, "<br/><br/>"),
+            HTML(help_msg)
+          )
+        }
+      })
   }
   )
+  
+ 
   
   # if user click gsheet_btn, generating gsheet
   observeEvent(
