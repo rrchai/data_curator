@@ -543,7 +543,7 @@ schema_to_display_lookup <- data.frame(schema_name, display_name)
       
       ### format output text
       output$text2 <- renderUI({
-        shiny::validate(need(input$template_type == "", "choose template"))
+        shiny::validate(need(input$template_type != "", "choose template"))
         
         if (is.null(rawData())) {
             HTML("Please select a data set")
