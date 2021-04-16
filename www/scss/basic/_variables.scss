@@ -2,9 +2,17 @@
 
 // colors
 $primary_col: #605ca8;
+$light: #f8f9fa;
+$dark: #343a40;
 $error_col: #E53935;
 $success_col: #28a745;
+$sidebar_col: #191919;
+$sidebar_text_col: #FFF;
 $notif_process_col: #F7DC6F; 
 $notif_success_col: #82E0AA;
-$footer_col: #465362;
-$footer_bg_col: #D0D6DC;
+$heart_col: #98002e;
+
+$grad_primary_col: linear-gradient(45deg, purple, #7590d6);
+$grad_secondary_col: linear-gradient(45deg, #7590d6, purple);
+
+$trans_time: 200ms;

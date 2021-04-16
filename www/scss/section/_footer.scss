@@ -1,12 +1,50 @@
-footer {
+#sidebar_footer {
+
     position: absolute; 
-    padding: 18px; 
+    padding: 5px 15px 0px 15px; 
     left: 0; 
     bottom: 0; 
     width: 100%; 
-    background-color: $footer_bg_col; 
-    color: $footer_col; 
-    font-size: 10px;
+    background-color: $light; 
+    color: $dark; 
+    font-size: 8px;
     text-align: center;
-    z-index: 1000
+    z-index: 1000;
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden; // hide extra box when collapse
+    display: flex;  // use for align boxes
+    align-items: center;
+
+    .fa{
+        color: transparent;
+        background: $grad_primary_col;
+        -webkit-background-clip: text;
+    }
+        
+    div {
+        transform: scale(2.5);
+        margin: 5px;
+        padding: 2px;
+    }
+    
+    footer {
+        padding: 5px 10px 5px 15px;
+        line-height: 2;
+    }
 }
+
+.sidebar-collapse #sidebar_footer {
+
+    .fa {
+        background-color: #2f4353;
+        background-image: linear-gradient(315deg, #2f4353 0%, #d2ccc4 74%);
+        transition: $trans_time*2;
+    }
+
+    footer {
+        visibility: hidden;
+    } 
+
+}
+
