@@ -5,6 +5,11 @@
     font-weight: normal;
  }
 */
+
+.wrapper {
+    background-color: $bg_primary_col;
+}
+
 .content-wrapper {
     overflow-y: visible !important;
     background-color: $bg_primary_col;
