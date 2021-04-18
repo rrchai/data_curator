@@ -103,7 +103,7 @@ ui <- shinydashboardPlus::dashboardPage(
                   status = "primary",
                   solidHeader = TRUE,
                   width = 12,
-                  actionButton("download", "Click to Generate Google Sheets Template"),
+                  actionButton("downloadButton", "Click to Generate Google Sheets Template"),
                   hidden(
                     div(
                       id = 'text_div',
@@ -143,7 +143,7 @@ ui <- shinydashboardPlus::dashboardPage(
                   status = "primary",
                   solidHeader = TRUE,
                   width = 12,
-                  actionButton("validate", "Validate Metadata"),
+                  actionButton("validateButton", "Validate Metadata"),
                   hidden(
                     div(id = 'text_div2', 
                         height = "100%",
@@ -269,23 +269,26 @@ server <- function(input, output, session) {
 #   })
 # 
 # 
-#   ###### BUTTONS STUFF  !!! remove last arrow 
-#   Previous_Button=tags$div(actionButton("Prev_Tab",HTML('
-# <div class="col-sm-4"><i class="fa fa-angle-double-left fa-2x"></i></div>
-# ')))
-#   Next_Button=div(actionButton("Next_Tab",HTML('
-# <div class="col-sm-4"><i class="fa fa-angle-double-right fa-2x"></i></div>
-# ')))
-# 
-tabs_display <- c("Instructions", "Select your Dataset", "Get Metadata Template", "Validate your Metadata", "Submit your Metadata")
-list_tabs <- c("instructions", "data", "template", "upload", "submit")
-intro_msg <- c('Choose your project, folder and metadata template type matching your metadata.',
-               'Click on the link to generate the metadata template, then fill out and download the file as a CSV. 
-                If you already have an annotated metadata template, you may skip this step.',
-               'Upload your filled CSV and validate your metadata. 
-                If you receive errors correct them, reupload your CSV, and revalidate until you receive no more errors.',
-               'When your metadata is valid, you will be able to see a "Submit" button. 
-                Press it to submit your metadata.')
+  ###### BUTTONS STUFF  !!! remove last arrow
+  Previous_Button=tags$div(
+    actionButton("Prev_Tab", 
+    lapply(1:3, function(i) tags$i(class="fa fa-angle-left")))
+  )
+
+  Next_Button=tags$div(
+    actionButton("Next_Tab", 
+                 lapply(1:3, function(i) tags$i(class="fa fa-angle-right")))
+  )
+
+  tabs_display <- c("Instructions", "Select your Dataset", "Get Metadata Template", "Validate your Metadata", "Submit your Metadata")
+  list_tabs <- c("instructions", "data", "template", "upload", "submit")
+  intro_msg <- c('Choose your project, folder and metadata template type matching your metadata.',
+                 'Click on the link to generate the metadata template, then fill out and download the file as a CSV. 
+                  If you already have an annotated metadata template, you may skip this step.',
+                 'Upload your filled CSV and validate your metadata. 
+                  If you receive errors correct them, reupload your CSV, and revalidate until you receive no more errors.',
+                 'When your metadata is valid, you will be able to see a "Submit" button. 
+                  Press it to submit your metadata.')
 
   output$intro_card <- renderUI({
     div(class="card-box",
@@ -295,47 +298,49 @@ intro_msg <- c('Choose your project, folder and metadata template type matching 
                   tags$span(HTML(paste0("Step ", i))), 
                   tags$p(HTML(paste0(tabs_display[i+1])))),
               div(class="card-face back", 
-                  actionButton(list_tabs[i+1], "Go"), 
+                  actionButton(paste0("card-", list_tabs[i+1], "-btn"), "Go"), 
                   tags$p(HTML(paste0(intro_msg[i]))))
           )
         })
     )
   })
   
-lapply(2:5, function(i) {
-  observeEvent(input[[list_tabs[i]]], {
-    updateTabItems(session,"tabs", selected=list_tabs[i])
-})
-})
+  lapply(2:5, function(i) {
+    observeEvent(input[[paste0("card-", list_tabs[i], "-btn")]], {
+      updateTabItems(session,"tabs", selected=list_tabs[i])
+  })
+  })
 
-#
-#   output$Next_Previous <- renderUI({
-#     
-#     tab_list=list_tabs
-#     if ( input[["tabs"]] == "upload" ){
-#       # column(1,offset=1,Previous_Button)
-#     } else if (input[["tabs"]] == "instructions" ) {
-#       column(1,offset = 10,Next_Button)
-#     } else {
-#       div(column(1,offset=1,Previous_Button),column(1,offset=8,Next_Button))
-#     }
-#   })
-# 
-#   observeEvent(input$Prev_Tab,
-#               {
-#                 tab_list=list_tabs
-#                 current_tab=which(tab_list==input[["tabs"]])
-#                 updateTabItems(session,"tabs",selected=tab_list[current_tab-1])
-#               })
-# 
-#   observeEvent(input$Next_Tab,
-#               {
-#                 tab_list=list_tabs
-#                 current_tab=which(tab_list==input[["tabs"]])
-#                 updateTabItems(session,"tabs",selected=tab_list[current_tab+1])
-#               })
-#   
-#   ####### BUTTONS END
+
+  output$Next_Previous <- renderUI({
+
+    tab_list=list_tabs
+    if ( input[["tabs"]] == "submit" ){
+      # column(1,offset=1,Previous_Button)
+    } else if (input[["tabs"]] == "instructions" ) {
+      column(1,offset = 10,Next_Button)
+    } else {
+      div(column(1,offset=1,Previous_Button),column(1,offset=8,Next_Button))
+    }
+  })
+
+  observeEvent(input$Prev_Tab,
+              {
+                tab_list=list_tabs
+                current_tab=which(tab_list==input[["tabs"]])
+                updateTabItems(session,"tabs",selected=tab_list[current_tab-1])
+              })
+
+  observeEvent(input$Next_Tab,
+              {
+                tab_list=list_tabs
+                current_tab=which(tab_list==input[["tabs"]])
+                updateTabItems(session,"tabs",selected=tab_list[current_tab+1])
+              })
+  output$submit <- renderUI({
+            actionButton("submitButton", "Submit to Synapse")
+          })
+  ####### BUTTONS END
 # 
 #   ### lists folder datasets if exists in project
 #   observeEvent(ignoreNULL = TRUE, ignoreInit = TRUE,
@@ -391,7 +396,7 @@ lapply(2:5, function(i) {
 # 
 #   ###shows new metadata link when get gsheets template button pressed OR updates old metadata if is exists 
 #   observeEvent(
-#     input$download, {
+#     input$downloadButton, {
 # 
 #     manifest_w$show()
 #     
@@ -499,7 +504,7 @@ lapply(2:5, function(i) {
 # 
 #   ### toggles validation status when validate button pressed
 #   observeEvent(
-#     input$validate, {
+#     input$validateButton, {
 #     
 #     validation_res <- NULL
 #     type_error <- NULL
