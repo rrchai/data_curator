@@ -25,3 +25,13 @@ $grad_primary_col: linear-gradient(45deg, purple, #7590d6);
 $grad_secondary_col: linear-gradient(45deg, #7590d6, purple);
 
 $trans_time: 200ms;
+
+@mixin layout-content($h:center, $v:center) {
+    justify-content: $h;
+    align-items: $v;
+}
+
+@mixin flex-content ($dir:row) {
+    display: flex;
+    flex-direction: $dir;
+}

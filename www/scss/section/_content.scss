@@ -14,12 +14,106 @@
 
 .tab-content {
 
-    h2 {
+    .title h2 {
         font-family: $quicksand;
         font-weight: 550;
         border-bottom: 1px solid rgba(0, 0, 0,  0.12); // line below title
         padding-bottom: 16px;
     }
+}
+
+// instruction card
+
+#shiny-tab-instructions .card-box {
+    
+    position: relative;
+    top: 5px;
+    height: 70vh;
+    width: 100%;
+    @include flex-content($dir:column);
+    @include layout-content;
+
+    .intro-card {
+        position: relative;
+        perspective: 1000px;
+        width: 100%;
+        height: 100%;
+        margin: 10px;
+        
+        span {
+            width: 20%;
+            font-size: 20px;
+            padding: 10px;
+            margin: 5px;
+            overflow: auto;
+        }
+
+        p { 
+            font-size: 16px;
+            padding: 10px;
+            margin: 5px;
+            overflow: auto;
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            @include flex-content($dir:row);
+            @include layout-content($h:left);
+            vertical-align: middle;
+            backface-visibility: hidden;
+            transition: all 1s ease-in-out;
+            border-radius: 8px;
+            text-align: center; 
+            box-shadow: 0px 0.0625em 0.0625em rgba(0, 0, 0, 0.25),
+                0px 0.125em 0.5em rgba(0, 0, 0, 0.25),
+                0px 0px 0px 1px inset rgba(255, 255, 255, 0.1);
+        }
+        
+        .front {
+            transform: rotateX(0deg);
+        }
+
+        .back {
+            transform: rotateX(-180deg);
+
+            .btn {
+                margin-left: 20px;
+                margin-right: 10px;
+            }
+
+            p { 
+                font-size: 14px;
+                text-align: left;
+                margin-left: 20px;
+                margin-right: 10px;
+                
+                &:before, &:after { // add a line
+                    content: '';
+                    height: 80%;
+                    border-left: 1px solid rgba(0, 0, 0, 0.12);
+                    position: absolute;
+                    bottom: 9px;
+                    left: 85px;
+                }
+            }
+        }
+
+        &:hover {
+            .front {
+                transform: rotateX(180deg);
+            }
+
+            .back {
+                transform: rotateX(0deg);
+            }
+        }
+
+    }
+
+
+
 }
 
 .box-solid.box-primary {

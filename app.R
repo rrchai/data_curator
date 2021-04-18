@@ -37,11 +37,6 @@ ui <- shinydashboardPlus::dashboardPage(
                    tags$img(height = "40px", alt = "HTAN LOGO",
                             src = "HTAN_text_logo.png")))
     ),
-  # footer = dashboardFooter(HTML(
-  #           paste0('Supported by the Human Tumor Atlas Network (U24-CA233243-01)<br/>
-  #                  Powered by ', '<i class="far fa-heart"></i>', 
-  #                  ' and Sage Bionetworks'))),
-  
   shinydashboardPlus::dashboardSidebar(
     width = 250,
     sidebarMenu(
@@ -49,7 +44,8 @@ ui <- shinydashboardPlus::dashboardPage(
       menuItem("Instructions", tabName = "instructions", icon = icon("book-open")),
       menuItem("Select your Dataset", tabName = "data", icon = icon("mouse-pointer")),
       menuItem("Get Metadata Template", tabName = "template", icon = icon("table")),
-      menuItem("Submit & Validate Metadata", tabName = "upload", icon = icon("upload"))
+      menuItem("Validate your Metadata", tabName = "upload", icon = icon("upload")),
+      menuItem("Submit your Metadata", tabName = "submit", icon = icon("cloud-upload"))
     ),
     # add sidebar footer here
     tags$a(id="sidebar_footer", `data-toggle`="tab",
@@ -70,11 +66,9 @@ ui <- shinydashboardPlus::dashboardPage(
     tabItems(
       # First tab content
       tabItem(tabName = "instructions",
-              h2("Instructions for the Data Curator App:"),
-              h3("1. Go to", strong("Select your Dataset"), "tab - select your project; choose your folder and metadata template type matching your metadata."),
-              h3("2. Go to", strong("Get Metadata Template"), "tab - click on the link to generate the metadata template, then fill out and download the file as a CSV. If you already have an annotated metadata template, you may skip this step."),
-              h3("3. Go to", strong("Submit and Validate Metadata"), "tab - upload your filled CSV and validate your metadata. If you receive errors correct them, reupload your CSV, and revalidate until you receive no more errors. When your metadata is valid, you will be able to see a 'Submit' button. Press it to submit your metadata.")
-              ),
+              div(class="title", h2("Instructions for the Data Curator App:")),
+              uiOutput("intro_card")
+      ),
       # second tab content
       tabItem(tabName = "data",
               h2("Set Dataset and Metadata Template for Curation"),
@@ -125,7 +119,7 @@ ui <- shinydashboardPlus::dashboardPage(
 
       # Fourth tab content
       tabItem(tabName = "upload",
-              h2("Submit & Validate a Filled Metadata Template"),
+              h2("Upload & Validate a Filled Metadata Template"),
               fluidRow(
                 box(
                   title = "Upload Filled Metadata as a CSV",
@@ -164,19 +158,25 @@ ui <- shinydashboardPlus::dashboardPage(
                   ),
                   helpText(
                     HTML("If you have an error, please try editing locally or on google sheet.<br/>
-                         Reupload your CSV and press the validate button as needed.")
+                          Reupload your CSV and press the validate button as needed.")
                   )
-                ),
-                box(title = "Submit Validated Metadata to Synapse",
-                        status = "primary",
-                        solidHeader = TRUE,
-                        width = 12,
-                        uiOutput("submit")
                 )
         )
+      ),
+      # Fourth tab content
+      tabItem(tabName = "submit",
+              h2("Submit your Metadata Template"),
+              fluidRow(
+                box(title = "Submit Validated Metadata to Synapse",
+                    status = "primary",
+                    solidHeader = TRUE,
+                    width = 12,
+                    uiOutput("submit")
+                )
+              )
       )
     ),
-    uiOutput("Next_Previous"),
+    uiOutput("Next_Previous")
 
     ## waiter loading screen
     # use_waiter(),
@@ -194,6 +194,7 @@ server <- function(input, output, session) {
   onevent("mouseenter", "sidebarCollapsed", shinyjs::removeCssClass(selector = "body", class = "sidebar-collapse"))
   onevent("mouseleave", "sidebarCollapsed", shinyjs::addCssClass(selector = "body", class = "sidebar-collapse"))
 
+  
 #   ########### session global variables
 #   reticulate::source_python("synStore_Session.py")
 # 
@@ -276,8 +277,38 @@ server <- function(input, output, session) {
 # <div class="col-sm-4"><i class="fa fa-angle-double-right fa-2x"></i></div>
 # ')))
 # 
-# list_tabs <- c("instructions", "data", "template", "upload")
-# 
+tabs_display <- c("Instructions", "Select your Dataset", "Get Metadata Template", "Validate your Metadata", "Submit your Metadata")
+list_tabs <- c("instructions", "data", "template", "upload", "submit")
+intro_msg <- c('Choose your project, folder and metadata template type matching your metadata.',
+               'Click on the link to generate the metadata template, then fill out and download the file as a CSV. 
+                If you already have an annotated metadata template, you may skip this step.',
+               'Upload your filled CSV and validate your metadata. 
+                If you receive errors correct them, reupload your CSV, and revalidate until you receive no more errors.',
+               'When your metadata is valid, you will be able to see a "Submit" button. 
+                Press it to submit your metadata.')
+
+  output$intro_card <- renderUI({
+    div(class="card-box",
+        lapply(1:4, function(i) {
+          div(class="intro-card",
+              div(class="card-face front", 
+                  tags$span(HTML(paste0("Step ", i))), 
+                  tags$p(HTML(paste0(tabs_display[i+1])))),
+              div(class="card-face back", 
+                  actionButton(list_tabs[i+1], "Go"), 
+                  tags$p(HTML(paste0(intro_msg[i]))))
+          )
+        })
+    )
+  })
+  
+lapply(2:5, function(i) {
+  observeEvent(input[[list_tabs[i]]], {
+    updateTabItems(session,"tabs", selected=list_tabs[i])
+})
+})
+
+#
 #   output$Next_Previous <- renderUI({
 #     
 #     tab_list=list_tabs
@@ -303,7 +334,7 @@ server <- function(input, output, session) {
 #                 current_tab=which(tab_list==input[["tabs"]])
 #                 updateTabItems(session,"tabs",selected=tab_list[current_tab+1])
 #               })
-# 
+#   
 #   ####### BUTTONS END
 # 
 #   ### lists folder datasets if exists in project
