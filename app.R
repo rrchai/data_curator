@@ -21,6 +21,7 @@ reticulate::import("sys")
 
 source_python("synLoginFun.py")
 source_python("metadataModelFuns.py")
+folderNames <<- c()
 
 #########
 
@@ -46,6 +47,12 @@ ui <- shinydashboardPlus::dashboardPage(
       menuItem("Get Metadata Template", tabName = "template", icon = icon("table")),
       menuItem("Validate your Metadata", tabName = "upload", icon = icon("upload")),
       menuItem("Submit your Metadata", tabName = "submit", icon = icon("cloud-upload"))
+    ), 
+    div(
+      id = "show_template_box",
+      uiOutput("manifest_sidebar"),
+      p("Note: when you change the selection here, 
+        your previous selection in 'Select your dataset' tab will also change."),
     ),
     # add sidebar footer here
     tags$a(id="sidebar_footer", `data-toggle`="tab",
@@ -208,10 +215,10 @@ server <- function(input, output, session) {
   proj_folder_manifest_cells <- c()
 
   folder_synID <- NULL
-
-  filename_list <- c()
+  
+  # assign global variable not working somehow, have to use reactive value
+  folderNames <- reactiveVal(NULL)  
   ############
-
   ### synapse cookies
   session$sendCustomMessage(type = "readCookie", message = list())
 
@@ -222,7 +229,7 @@ server <- function(input, output, session) {
     tryCatch({
 
       ### logs in
-      syn_login(sessionToken = input$cookie, rememberMe = FALSE)
+      syn_login(sessionToken = token, rememberMe = FALSE)
 
       ### welcome message
       output$title <- renderUI({
@@ -231,7 +238,7 @@ server <- function(input, output, session) {
 
       ### updating global vars with values for projects
       # synStore_obj <<- syn_store(config$main_fileview, token = input$cookie)
-      synStore_obj <<- syn_store(token = input$cookie)
+      synStore_obj <<- syn_store(token = token)
 
       # get_projects_list(synStore_obj)
       projects_list <<- syn_store$getStorageProjects(synStore_obj)
@@ -243,7 +250,7 @@ server <- function(input, output, session) {
       ### updates project dropdown
       updateSelectizeInput(session, 'var', choices = sort(names(projects_namedList)))
 
-    ### update waiter loading screen once login successful
+      ### update waiter loading screen once login successful
       waiter_update(
         html = tagList(
           img(src = "synapse_logo.png", height = "120px"),
@@ -339,50 +346,102 @@ server <- function(input, output, session) {
               })
 
   ####### BUTTONS END
-
+  
   ### lists folder datasets if exists in project
-  observeEvent(ignoreNULL = TRUE, ignoreInit = TRUE,
+
+  
+  observeEvent(ignoreInit = TRUE,
   input$var, {
-    output$folders = renderUI({
-      selected_project <- input$var
-
-      # if selected_project not empty
-      if (!is.null(selected_project)) {
-        project_synID <- projects_namedList[[selected_project]] ### get synID of selected project
-
-        ### gets folders per project
-        folder_list <- syn_store$getStorageDatasetsInProject(synStore_obj, project_synID)
-        folders_namedList <- c()
-        for (i in seq_along(folder_list)) {
-          folders_namedList[folder_list[[i]][[2]]] <- folder_list[[i]][[1]]
-        }
-        folderNames <- names(folders_namedList)
-
-        ### updates foldernames
-        selectInput(inputId = "dataset", label = "Folder:", choices = folderNames)
+    
+    selected_project <- input$var
+    # if selected_project not empty
+    if (!is.null(selected_project)) {
+      project_synID <- projects_namedList[[selected_project]] ### get synID of selected project
+      
+      ### gets folders per project
+      folder_list <- syn_store$getStorageDatasetsInProject(synStore_obj, project_synID)
+      folders_namedList <- c()
+      for (i in seq_along(folder_list)) {
+        folders_namedList[folder_list[[i]][[2]]] <- folder_list[[i]][[1]]
       }
+      fd <- names(folders_namedList)
+      folderNames(fd)   
+    }
+    
+    output$folders = renderUI({
+        ### updates foldernames
+        selectInput(inputId = "dataset", label = "Folder:", choices = folderNames())
     })
+    
   })
+  
+  # observe({
+  #   if (!is.null(input$dataset)){
+  #     print(T)
+  #   }else {
+  #       print(F)
+  #     } 
+  #   if (!is.null(input$dataset_sidebar)){
+  #     print(T)
+  #   }else {
+  #     print(F)
+  #   } 
+  # 
+  # })
+  ### mapping from display name to schema name
+  schema_name  <- config$manifest_schemas$schema_name
+  display_name <- config$manifest_schemas$display_name
+  
+  output$manifest_display_name <- renderUI({
+    selectizeInput(inputId = "template_type", 
+                   label = "Template:", choices = display_name)
+  })
+  
+  # sidebar display selected template
+  output$manifest_sidebar <- renderUI({
+    div(
+      if(!is.null(input$dataset)) {
+        selectInput(inputId = "dataset_sidebar", 
+                    label = "Current Selected Folder:", choices = folderNames())
+      } else {
+        tags$span(class="error_msg", HTML("No folder selected !<br>"))
+      },
+      if(!is.null(input$template_type)) {
+        selectInput(inputId = "template_sidebar",
+                    label = "Current Selected Template:", choices = display_name)
+      } else {
+        tags$span(class="error_msg", HTML("No template selected !<br>"))
+      }
+    )
+  })
+  
+  # make sidebar template names reactive with names displayed in tab
+  observeEvent(input$dataset,
+               updateSelectizeInput(session, "dataset_sidebar", selected = input$dataset)
+  )
+  
+  observeEvent(input$dataset_sidebar,
+               updateSelectizeInput(session, "dataset", selected = input$dataset_sidebar)
+  )
 
-### mapping from display name to schema name
-schema_name  <- config$manifest_schemas$schema_name
-display_name <- config$manifest_schemas$display_name
-
-output$manifest_display_name <- renderUI({
-	selectInput(inputId = "template_type",
-                    label = "Template:",
-                    choices = display_name)
-
-})
-
-observeEvent({input$dataset
-              input$template_type
-              }, {
-                sapply(c('text_div', 'text_div2', 'tbl2', 'gsheet_btn', 'gsheet_div', 'submitButton'), FUN=hide)
-})
-
-schema_to_display_lookup <- data.frame(schema_name, display_name)
-
+  # fix box -> not move with tab 
+  # fix overflow text in intro
+  observeEvent(input$template_type,
+               updateSelectizeInput(session, "template_sidebar", selected = input$template_type)
+  )
+  
+  observeEvent(input$template_sidebar,
+               updateSelectizeInput(session, "template_type", selected = input$template_sidebar)
+  )
+  
+  observeEvent({input$dataset
+                input$template_type
+                }, {
+                  sapply(c('text_div', 'text_div2', 'tbl2', 'gsheet_btn', 'gsheet_div', 'submitButton'), FUN=hide)
+  })
+  
+  schema_to_display_lookup <- data.frame(schema_name, display_name)
+  
   # loading screen for template link generation
   manifest_w <- Waiter$new(
     html = tagList(
