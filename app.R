@@ -21,6 +21,17 @@ reticulate::import("sys")
 source_python("synLoginFun.py")
 source_python("metadataModelFuns.py")
 options(stringsAsFactors = FALSE) # stringsAsFactors = TRUE by default for R < 4.0
+
+getFolders <- function(project_synID, synStore_obj) {
+  folder_list <- syn_store$getStorageDatasetsInProject(synStore_obj, project_synID)
+  folders_namedList <- c()
+  for (i in seq_along(folder_list)) {
+    folders_namedList[folder_list[[i]][[2]]] <- folder_list[[i]][[1]]
+  }
+  folderNames <- names(folders_namedList)
+  return(folderNames)
+}
+
 #########
 
 ui <- dashboardPage(
@@ -119,7 +130,11 @@ ui <- dashboardPage(
               label = "Project:",
               choices = "Generating..."
             ),
-            uiOutput("folders"),
+            selectizeInput(
+              inputId = "dataset",
+              label = "Folder:",
+              choices = "Generating..."
+            ),
             helpText(
               "If your recently updated folder does not appear, please wait for Synapse to sync and refresh"
             )
@@ -129,7 +144,11 @@ ui <- dashboardPage(
             solidHeader = TRUE,
             width = 6,
             title = "Choose a Metadata Template Type: ",
-            uiOutput("manifest_display_name")
+            selectizeInput(
+              inputId = "template_type",
+              label = "Template:",
+              choices = "Generating..."
+            )          
           )
         )
       ),
@@ -227,7 +246,10 @@ server <- function(input, output, session) {
 
   ### read config in
   config <- jsonlite::fromJSON("www/config.json")
-
+  ### mapping from display name to schema name
+  schema_name <- config$manifest_schemas$schema_name
+  display_name <- config$manifest_schemas$display_name
+  
   ### logs in and gets list of projects they have access to
   synStore_obj <- NULL
   # get_projects_list(synStore_obj)
@@ -274,7 +296,16 @@ server <- function(input, output, session) {
 
         ### updates project dropdown
         updateSelectizeInput(session, "var", choices = sort(names(projects_namedList)))
-
+        
+        project_synID <- projects_namedList[[sort(names(projects_namedList))[1]]]
+        # gets folders per project
+        folderNames <- getFolders(project_synID, synStore_obj)
+        
+        # updates folder names
+        updateSelectizeInput(session, "dataset", choices = folderNames)
+        # updates template names
+        updateSelectizeInput(session, "template_type", choices = display_name)
+        
         ### update waiter loading screen once login successful
         waiter_update(html = tagList(
           img(src = "synapse_logo.png", height = "120px"),
@@ -340,53 +371,18 @@ server <- function(input, output, session) {
   })
 
   ####### BUTTONS END
-
-  ### lists folder datasets if exists in project
+  # Update folders when projects change
   observeEvent(
-    ignoreNULL = TRUE,
     ignoreInit = TRUE,
     input$var,
     {
-      output$folders <- renderUI({
-        selected_project <- input$var
-
-        # if selected_project not empty
-        if (!is.null(selected_project)) {
-          project_synID <-
-            projects_namedList[[selected_project]] ### get synID of selected project
-
-          ### gets folders per project
-          folder_list <-
-            syn_store$getStorageDatasetsInProject(synStore_obj, project_synID)
-          folders_namedList <- c()
-          for (i in seq_along(folder_list)) {
-            folders_namedList[folder_list[[i]][[2]]] <- folder_list[[i]][[1]]
-          }
-          folderNames <- names(folders_namedList)
-
-          ### updates foldernames
-          selectInput(
-            inputId = "dataset",
-            label = "Folder:",
-            choices = folderNames
-          )
-        }
-      })
+      # updates folder names
+      project_synID <- projects_namedList[[input$var]]
+      folderNames <- getFolders(project_synID, synStore_obj)
+      updateSelectizeInput(session, "dataset", choices = folderNames)
     }
   )
-
-  ### mapping from display name to schema name
-  schema_name <- config$manifest_schemas$schema_name
-  display_name <- config$manifest_schemas$display_name
-
-  output$manifest_display_name <- renderUI({
-    selectInput(
-      inputId = "template_type",
-      label = "Template:",
-      choices = display_name
-    )
-  })
-
+  
   observeEvent(
     {
       input$dataset
@@ -656,6 +652,7 @@ server <- function(input, output, session) {
       text_class <- ifelse(!is.null(validation_res) && validation_res == "valid", "success_msg", "error_msg")
       
       tagList(
+        # HTML(paste0(input$template_type))
         if (is.null(input$template_type)) span(class=text_class, HTML("Please <b>select a template</b> from the 'Select your Dataset' tab !<br><br>")), 
         if (is.null(rawData())) span(class=text_class, HTML("Please <b>upload</b> a filled template !")), 
         if (!is.null(validation_res)) span(class=text_class, HTML(paste0("Your metadata is <b>", validation_res, "</b> !!!"))),
