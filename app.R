@@ -22,16 +22,6 @@ source_python("synLoginFun.py")
 source_python("metadataModelFuns.py")
 options(stringsAsFactors = FALSE) # stringsAsFactors = TRUE by default for R < 4.0
 
-getFolders <- function(project_synID, synStore_obj) {
-  folder_list <- syn_store$getStorageDatasetsInProject(synStore_obj, project_synID)
-  folders_namedList <- c()
-  for (i in seq_along(folder_list)) {
-    folders_namedList[folder_list[[i]][[2]]] <- folder_list[[i]][[1]]
-  }
-  folderNames <- names(folders_namedList)
-  return(folderNames)
-}
-
 #########
 
 ui <- dashboardPage(
@@ -91,9 +81,24 @@ ui <- dashboardPage(
       singleton(
         includeScript("www/readCookie.js")
       )),
-
     uiOutput("title"),
+    box(id = "show-info-box",
+        collapsible = T,
+        status = "info",
+        solidHeader = FALSE,
+        width = 12,
+        fluidRow(
+          lapply(c("var", "dataset", "template_type"), function(i) { 
+            column(3, selectizeInput(inputId = paste0("show-", i, "-btn"),
+                                     label = paste0(toupper(i), ":"), 
+                                     choices = character(0)))
+          }),
+          column(3, actionButton(inputId = "show-update-btn", label = "Update"
+          ))
+        )
+    ),
     use_notiflix_report(),
+    use_notiflix_confirm(),
     tabItems(
       # First tab content
       tabItem(
@@ -246,9 +251,11 @@ server <- function(input, output, session) {
 
   ### read config in
   config <- jsonlite::fromJSON("www/config.json")
+  
   ### mapping from display name to schema name
   schema_name <- config$manifest_schemas$schema_name
   display_name <- config$manifest_schemas$display_name
+  schema_to_display_lookup <- data.frame(schema_name, display_name)
   
   ### logs in and gets list of projects they have access to
   synStore_obj <- NULL
@@ -262,6 +269,19 @@ server <- function(input, output, session) {
   folder_synID <- NULL
 
   filename_list <- c()
+  
+  data_btn_names <- c("var", "dataset", "template_type")
+  
+  getFolders <- function(project_synID, synStore_obj) {
+    folder_list <- syn_store$getStorageDatasetsInProject(synStore_obj, project_synID)
+    folders_namedList <- c()
+    for (i in seq_along(folder_list)) {
+      folders_namedList[folder_list[[i]][[2]]] <- folder_list[[i]][[1]]
+    }
+    folderNames <- names(folders_namedList)
+    return(folderNames)
+  }
+  
   ############
 
   ### synapse cookies
@@ -293,19 +313,20 @@ server <- function(input, output, session) {
           projects_namedList[projects_list[[i]][[2]]] <<-
             projects_list[[i]][[1]]
         }
-
-        ### updates project dropdown
-        updateSelectizeInput(session, "var", choices = sort(names(projects_namedList)))
         
         project_synID <- projects_namedList[[sort(names(projects_namedList))[1]]]
+        
         # gets folders per project
         folderNames <- getFolders(project_synID, synStore_obj)
         
+        lapply(list(data_btn_names, paste0("show-", data_btn_names, "-btn")), function(x){
+        ### updates project dropdown
+        updateSelectizeInput(session, x[1], choices = sort(names(projects_namedList)))
         # updates folder names
-        updateSelectizeInput(session, "dataset", choices = folderNames)
+        updateSelectizeInput(session, x[2], choices = folderNames)
         # updates template names
-        updateSelectizeInput(session, "template_type", choices = display_name)
-        
+        updateSelectizeInput(session, x[3], choices = display_name)
+      })
         ### update waiter loading screen once login successful
         waiter_update(html = tagList(
           img(src = "synapse_logo.png", height = "120px"),
@@ -331,7 +352,7 @@ server <- function(input, output, session) {
     )
   })
 
-
+  
   ###### BUTTONS STUFF  !!! remove last arrow
   Previous_Button <- tags$div(actionButton(
     "Prev_Tab",
@@ -369,7 +390,8 @@ server <- function(input, output, session) {
     current_tab <- which(tab_list == input[["tabs"]])
     updateTabItems(session, "tabs", selected = tab_list[current_tab + 1])
   })
-
+  
+  
   ####### BUTTONS END
   # Update folders when projects change
   observeEvent(
@@ -383,6 +405,33 @@ server <- function(input, output, session) {
     }
   )
   
+  observeEvent(input[["template_type"]], {
+    lapply(data_btn_names, function(i) {
+               updateSelectizeInput(session, paste0("show-", i, "-btn"),
+                                    selected = input[[i]])
+               })
+  })
+    
+  observeEvent(input[["show-update-btn"]], {
+    nx_confirm(
+      inputId = "update_confirm",
+      title = "Are you sure to update?",
+      message = "previously selected datasets will also change",
+      button_ok = "Sure!",
+      button_cancel = "Nope!"
+    )
+  })
+  
+  observeEvent(input$update_confirm , {
+    
+    if(input$update_confirm == TRUE) {
+      lapply(data_btn_names, function(i) {
+             updateSelectizeInput(session, i,
+                                  selected = input[[paste0("show-", i, "-btn")]])
+      })
+    }
+  })
+
   observeEvent(
     {
       input$dataset
@@ -403,7 +452,6 @@ server <- function(input, output, session) {
     }
   )
 
-  schema_to_display_lookup <- data.frame(schema_name, display_name)
 
   # loading screen for template link generation
   manifest_w <- Waiter$new(
