@@ -400,8 +400,6 @@ server <- function(input, output, session) {
     } else {
       show("header-selection-dropdown")
       addClass(id = "header-selection-dropdown",  class = "open")
-      onevent("mouseleave", "header-selection-dropdown", 
-              removeClass(id = "header-selection-dropdown", class = "open"))
   }
   })
   
