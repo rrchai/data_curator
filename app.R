@@ -13,7 +13,7 @@ library(plotly)
 library(shinypop)
 library(waiter)
 library(sass)  # read scss file
-
+library(shinydashboardPlus) # need to load after 'shinydashboard'
 #########global
 use_condaenv('data_curator_env', required = TRUE)
 reticulate::import("sys")
@@ -21,14 +21,29 @@ reticulate::import("sys")
 source_python("synLoginFun.py")
 source_python("metadataModelFuns.py")
 options(stringsAsFactors = FALSE) # stringsAsFactors = TRUE by default for R < 4.0
-
+datatypes <- c("Project", "Folder", "Template")
 #########
 
 ui <- dashboardPage(
   skin = "purple",
-  dashboardHeader(
+  header = dashboardHeader(
     titleWidth = 250,
     title = "Data Curator",
+    leftUi = tagList(
+      dropdownBlock(
+        id = "header-selection-dropdown",
+        title = "Selection",
+        icon = icon("gears"),
+        badgeStatus = NULL,
+        headerText = tags$span("Current selected datatype:"),
+        lapply(datatypes, function(i) {
+          selectizeInput(inputId = paste0("header-", i, "-btn"),
+                         label = paste0(i, ":"),
+                         choices = character(0))
+        }),
+        actionButton(inputId = "header-update-btn", label = "Update")
+      )
+    ),
     tags$li(
       class = "dropdown",
       tags$a(
@@ -41,8 +56,9 @@ ui <- dashboardPage(
         )
       )
     )
+
   ),
-  dashboardSidebar(
+  sidebar =dashboardSidebar(
     width = 250,
     sidebarMenu(
       id = "tabs",
@@ -75,28 +91,13 @@ ui <- dashboardPage(
       )
     )
   ),
-  dashboardBody(
+  body =dashboardBody(
     tags$head(
       tags$style(sass(sass_file("www/scss/main.scss"))),
       singleton(
         includeScript("www/readCookie.js")
       )),
     uiOutput("title"),
-    box(id = "show-info-box",
-        collapsible = T,
-        status = "info",
-        solidHeader = FALSE,
-        width = 12,
-        fluidRow(
-          lapply(c("var", "dataset", "template_type"), function(i) { 
-            column(3, selectizeInput(inputId = paste0("show-", i, "-btn"),
-                                     label = paste0(toupper(i), ":"), 
-                                     choices = character(0)))
-          }),
-          column(3, actionButton(inputId = "show-update-btn", label = "Update"
-          ))
-        )
-    ),
     use_notiflix_report(),
     use_notiflix_confirm(),
     tabItems(
@@ -130,16 +131,13 @@ ui <- dashboardPage(
             solidHeader = TRUE,
             width = 6,
             title = "Choose a Project and Folder: ",
-            selectizeInput(
-              inputId = "var",
-              label = "Project:",
-              choices = "Generating..."
-            ),
-            selectizeInput(
-              inputId = "dataset",
-              label = "Folder:",
-              choices = "Generating..."
-            ),
+            lapply(datatypes[1:2], function(i) {
+              selectizeInput(
+                inputId = paste0("tab-", i, "-btn"),
+                label = paste0(i, ":"),
+                choices = "Generating..."
+              )
+            }),
             helpText(
               "If your recently updated folder does not appear, please wait for Synapse to sync and refresh"
             )
@@ -150,8 +148,8 @@ ui <- dashboardPage(
             width = 6,
             title = "Choose a Metadata Template Type: ",
             selectizeInput(
-              inputId = "template_type",
-              label = "Template:",
+              inputId = paste0("tab-", datatypes[3], "-btn"),
+              label = paste0(datatypes[3], ":"),
               choices = "Generating..."
             )          
           )
@@ -270,8 +268,6 @@ server <- function(input, output, session) {
 
   filename_list <- c()
   
-  data_btn_names <- c("var", "dataset", "template_type")
-  
   getFolders <- function(project_synID, synStore_obj) {
     folder_list <- syn_store$getStorageDatasetsInProject(synStore_obj, project_synID)
     folders_namedList <- c()
@@ -319,7 +315,8 @@ server <- function(input, output, session) {
         # gets folders per project
         folderNames <- getFolders(project_synID, synStore_obj)
         
-        lapply(list(data_btn_names, paste0("show-", data_btn_names, "-btn")), function(x){
+        lapply(list(paste0("tab-", datatypes, "-btn"), 
+                    paste0("header-", datatypes, "-btn")), function(x){
         ### updates project dropdown
         updateSelectizeInput(session, x[1], choices = sort(names(projects_namedList)))
         # updates folder names
@@ -394,29 +391,47 @@ server <- function(input, output, session) {
   
   ####### BUTTONS END
   # Update folders when projects change
-  observeEvent(
-    ignoreInit = TRUE,
-    input$var,
-    {
-      # updates folder names
-      project_synID <- projects_namedList[[input$var]]
-      folderNames <- getFolders(project_synID, synStore_obj)
-      updateSelectizeInput(session, "dataset", choices = folderNames)
-    }
-  )
   
-  observeEvent(input[["template_type"]], {
-    lapply(data_btn_names, function(i) {
-               updateSelectizeInput(session, paste0("show-", i, "-btn"),
-                                    selected = input[[i]])
-               })
+  # show/open the dropdown menu if tabs are not intro or data
+  observe({
+    if (input[["tabs"]] %in% c("instructions", "data")) {
+      hide("header-selection-dropdown")
+      removeClass(id = "header-selection-dropdown",  class = "open")
+    } else {
+      show("header-selection-dropdown")
+      addClass(id = "header-selection-dropdown",  class = "open")
+      onevent("mouseleave", "header-selection-dropdown", 
+              removeClass(id = "header-selection-dropdown", class = "open"))
+  }
   })
-    
-  observeEvent(input[["show-update-btn"]], {
+  
+  lapply(c("header-", "tab-"), function(i) {
+    observeEvent(
+      ignoreInit = TRUE,
+      input[[paste0(i, datatypes[1], "-btn")]],
+      {
+        selected_project <- input[[paste0(i, datatypes[1], "-btn")]]
+        # updates folder names
+        project_synID <- projects_namedList[[selected_project]]
+        folderNames <- getFolders(project_synID, synStore_obj)
+        updateSelectizeInput(session, paste0(i, datatypes[2], "-btn"), choices = folderNames)
+      }
+    )
+  })
+  
+  lapply(datatypes, function(i) {
+    observeEvent(input[[paste0("tab-", i, "-btn")]], {
+      updateSelectizeInput(session, paste0("header-", i, "-btn"),
+                           selected = input[[paste0("tab-", i, "-btn")]])
+    })
+                   
+  })
+
+  observeEvent(input[["header-update-btn"]], {
     nx_confirm(
       inputId = "update_confirm",
       title = "Are you sure to update?",
-      message = "previously selected datasets will also change",
+      message = "previously selections will also change",
       button_ok = "Sure!",
       button_cancel = "Nope!"
     )
@@ -425,9 +440,9 @@ server <- function(input, output, session) {
   observeEvent(input$update_confirm , {
     
     if(input$update_confirm == TRUE) {
-      lapply(data_btn_names, function(i) {
-             updateSelectizeInput(session, i,
-                                  selected = input[[paste0("show-", i, "-btn")]])
+      lapply(datatypes, function(i) {
+             updateSelectizeInput(session, paste0("tab-", i, "-btn"),
+                                  selected = input[[paste0("header-", i, "-btn")]])
       })
     }
   })
